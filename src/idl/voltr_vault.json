@@ -364,6 +364,103 @@
       "args": []
     },
     {
+      "name": "close_strategy",
+      "discriminator": [
+        56,
+        247,
+        170,
+        246,
+        89,
+        221,
+        134,
+        200
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "manager",
+          "signer": true
+        },
+        {
+          "name": "protocol",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault"
+        },
+        {
+          "name": "strategy"
+        },
+        {
+          "name": "strategy_init_receipt",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  114,
+                  97,
+                  116,
+                  101,
+                  103,
+                  121,
+                  95,
+                  105,
+                  110,
+                  105,
+                  116,
+                  95,
+                  114,
+                  101,
+                  99,
+                  101,
+                  105,
+                  112,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "strategy"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "deposit_strategy",
       "discriminator": [
         246,
@@ -3826,6 +3923,19 @@
       ]
     },
     {
+      "name": "CloseStrategyEvent",
+      "discriminator": [
+        213,
+        95,
+        219,
+        161,
+        17,
+        208,
+        93,
+        255
+      ]
+    },
+    {
       "name": "DepositStrategyEvent",
       "discriminator": [
         202,
@@ -4199,6 +4309,26 @@
           {
             "name": "vault_highest_asset_per_lp_decimal_bits_after",
             "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CloseStrategyEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "strategy",
+            "type": "pubkey"
+          },
+          {
+            "name": "strategy_init_receipt",
+            "type": "pubkey"
           }
         ]
       }

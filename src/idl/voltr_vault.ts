@@ -370,6 +370,103 @@ export type VoltrVault = {
       "args": []
     },
     {
+      "name": "closeStrategy",
+      "discriminator": [
+        56,
+        247,
+        170,
+        246,
+        89,
+        221,
+        134,
+        200
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "manager",
+          "signer": true
+        },
+        {
+          "name": "protocol",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  116,
+                  111,
+                  99,
+                  111,
+                  108
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault"
+        },
+        {
+          "name": "strategy"
+        },
+        {
+          "name": "strategyInitReceipt",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  114,
+                  97,
+                  116,
+                  101,
+                  103,
+                  121,
+                  95,
+                  105,
+                  110,
+                  105,
+                  116,
+                  95,
+                  114,
+                  101,
+                  99,
+                  101,
+                  105,
+                  112,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "account",
+                "path": "strategy"
+              }
+            ]
+          }
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "depositStrategy",
       "discriminator": [
         246,
@@ -3832,6 +3929,19 @@ export type VoltrVault = {
       ]
     },
     {
+      "name": "closeStrategyEvent",
+      "discriminator": [
+        213,
+        95,
+        219,
+        161,
+        17,
+        208,
+        93,
+        255
+      ]
+    },
+    {
       "name": "depositStrategyEvent",
       "discriminator": [
         202,
@@ -4205,6 +4315,26 @@ export type VoltrVault = {
           {
             "name": "vaultHighestAssetPerLpDecimalBitsAfter",
             "type": "u128"
+          }
+        ]
+      }
+    },
+    {
+      "name": "closeStrategyEvent",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "strategy",
+            "type": "pubkey"
+          },
+          {
+            "name": "strategyInitReceipt",
+            "type": "pubkey"
           }
         ]
       }

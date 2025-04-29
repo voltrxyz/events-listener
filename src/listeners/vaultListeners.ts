@@ -272,3 +272,13 @@ export function listenToWithdrawVaultEvent(
     console.log("Data:", JSON.stringify(stringifyEventData(event), null, 2));
   });
 }
+
+export function listenToCloseStrategyEvent(
+  program: Program<VoltrVault>
+): number {
+  console.log("Attaching listener for: closeStrategyEvent");
+  return program.addEventListener("closeStrategyEvent", (event, slot) => {
+    console.log(`\n[Event Received] closeStrategyEvent (Slot: ${slot})`);
+    console.log("Data:", JSON.stringify(stringifyEventData(event), null, 2));
+  });
+}
