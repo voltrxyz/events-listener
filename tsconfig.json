@@ -9,7 +9,8 @@
       "rootDir": "src", // Specify root directory
       "strict": true, // Enable strict type checking
       "skipLibCheck": true, // Can help with dependency type issues
-      "forceConsistentCasingInFileNames": true
+      "forceConsistentCasingInFileNames": true,
+      "resolveJsonModule": true
     },
     "lib": ["es2016"],
     "include": ["src/**/*"], // Include all files in src

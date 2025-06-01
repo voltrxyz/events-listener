@@ -1,8 +1,8 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program, AnchorProvider, Wallet } from "@coral-xyz/anchor";
-import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import { Connection, Keypair } from "@solana/web3.js";
 import { VoltrVault } from "../idl/voltr_vault"; // Import the TS IDL type
-import * as idl from "../idl/voltr_vault"; // Import the JSON IDL
+import * as idl from "../idl/voltr_vault.json"; // Import the JSON IDL
 import dotenv from "dotenv";
 
 dotenv.config(); // Load environment variables from .env file
@@ -18,21 +18,14 @@ const connection = new Connection(SOLANA_RPC_URL, "confirmed");
 // --- Setup Anchor Provider ---
 // We need a Wallet instance, but for listeners, signing isn't required.
 // Using a dummy keypair is OK.
-const dummyWallet: Wallet = {
-  payer: Keypair.generate(), // Dummy keypair
-  publicKey: Keypair.generate().publicKey, // Dummy public key
-  signTransaction: async (tx) => {
-    throw new Error("Dummy wallet cannot sign");
-  },
-  signAllTransactions: async (txs) => {
-    throw new Error("Dummy wallet cannot sign");
-  },
-};
-
-const provider = new AnchorProvider(connection, dummyWallet, {
-  preflightCommitment: "confirmed",
-  commitment: "confirmed",
-});
+const provider = new AnchorProvider(
+  connection,
+  new Wallet(Keypair.generate()),
+  {
+    preflightCommitment: "confirmed",
+    commitment: "confirmed",
+  }
+);
 
 // Set the provider as the default
 anchor.setProvider(provider);

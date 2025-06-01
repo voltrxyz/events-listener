@@ -2,283 +2,397 @@ import { Program, BN } from "@coral-xyz/anchor";
 import { VoltrVault } from "../idl/voltr_vault";
 import { PublicKey } from "@solana/web3.js";
 import { Decimal } from "decimal.js";
+import pino from "pino";
+
+// --- Pino Logger Setup ---
+const logger = pino({
+  level: process.env.LOG_LEVEL || "info", // Default to 'info', configurable
+  transport:
+    process.env.NODE_ENV !== "production"
+      ? {
+          target: "pino-pretty",
+          options: {
+            colorize: true,
+          },
+        }
+      : undefined,
+});
 
 // --- Constants for Decimal Conversion ---
-const DECIMAL_FRACTIONAL_BYTES = 6;
-const DECIMAL_DIVISOR = new Decimal(2).pow(8 * DECIMAL_FRACTIONAL_BYTES);
+const FIXED_POINT_FRACTIONAL_BITS = 48;
+const FIXED_POINT_DIVISOR = new Decimal(2).pow(FIXED_POINT_FRACTIONAL_BITS);
 
 // --- Set for Specific u128 Decimal Fields ---
-const DECIMAL_U128_FIELDS = new Set([
+const FIXED_POINT_U128_FIELDS = new Set([
   "vaultHighestAssetPerLpDecimalBitsBefore",
   "vaultHighestAssetPerLpDecimalBitsAfter",
   "amountAssetToWithdrawDecimalBits",
 ]);
 
-export function convertDecimalBitsToDecimal(value: BN): number {
+export function convertFixedPointToDecimal(value: BN): number | string {
   const decimalValue = new Decimal(value.toString());
   try {
-    return decimalValue.div(DECIMAL_DIVISOR).toNumber();
+    // Perform the division to get the actual decimal value
+    return decimalValue.div(FIXED_POINT_DIVISOR).toNumber();
   } catch (e) {
-    console.error(
-      `Error converting decimal bits (${value.toString()}) to Decimal number: ${
+    logger.warn(
+      `Error converting fixed-point BN (${value.toString()}) to Decimal.js number. Returning as string. Error: ${
         e instanceof Error ? e.message : e
-      }. Returning NaN.`
+      }`
     );
-    return NaN;
+    return value.toString(); // Fallback to string if conversion to number fails (e.g. too large/small)
   }
 }
 
-function stringifyEventData(data: any): any {
-  if (data === null || data === undefined) {
-    return data;
-  }
+function preprocessEventDataForLogging(
+  data: any,
+  programId: string,
+  eventName: string,
+  slot: number
+): any {
+  const processed: { [key: string]: any } = {
+    timestamp: new Date().toISOString(), // ISO8601 timestamp
+    level: "info", // Default log level for events
+    programId: programId,
+    eventName: eventName,
+    slot: slot,
+    // ... other global context if needed
+  };
 
-  // Handle PublicKey first
-  if (data instanceof PublicKey) {
-    return data.toBase58();
-  }
+  function transform(obj: any): any {
+    if (obj === null || obj === undefined) {
+      return obj;
+    }
 
-  // Handle Arrays recursively
-  if (Array.isArray(data)) {
-    return data.map(stringifyEventData);
-  }
+    if (obj instanceof PublicKey) {
+      return obj.toBase58();
+    }
 
-  // Handle Objects: Check for specific keys AND process recursively
-  if (
-    typeof data === "object" &&
-    !(data instanceof BN) &&
-    !(typeof data === "bigint")
-  ) {
-    const result: { [key: string]: any } = {};
-    for (const key in data) {
-      if (Object.prototype.hasOwnProperty.call(data, key)) {
-        const value = data[key];
+    if (Array.isArray(obj)) {
+      return obj.map(transform);
+    }
 
-        if (DECIMAL_U128_FIELDS.has(key) && value instanceof BN) {
-          result[key] = convertDecimalBitsToDecimal(value); // Apply specific conversion
-        }
-        // Exclude internal padding/reserved fields, then process others recursively
-        else if (
-          !key.startsWith("padding") &&
-          !key.startsWith("_padding") &&
-          !key.startsWith("reserved") &&
-          !key.startsWith("_reserved")
-        ) {
-          // Recursively call stringifyEventData for nested properties
-          result[key] = stringifyEventData(value);
-        }
-        // Implicitly skip padding/reserved fields
+    if (obj instanceof BN) {
+      // Standard BN to number/string conversion (for u64 etc.)
+      try {
+        return obj.toNumber(); // May throw for very large BNs
+      } catch (e) {
+        // logger.trace(`BN ${obj.toString()} too large for number, converting to string.`);
+        return obj.toString();
       }
     }
-    return result;
-  }
 
-  // Handle BN (u64 or u128 NOT handled above as specific decimal fields)
-  if (data instanceof BN) {
-    try {
-      return data.toNumber();
-    } catch (e) {
-      console.warn(
-        `Warning: BN.toNumber() failed (likely > MAX_SAFE_INTEGER): ${data.toString()}. Falling back to string. Error: ${
-          e instanceof Error ? e.message : e
-        }`
-      );
-      // Fallback to string for safety
-      return data.toString();
+    if (typeof obj === "bigint") {
+      return obj.toString();
     }
+
+    if (typeof obj === "object") {
+      const result: { [key: string]: any } = {};
+      for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          const value = obj[key];
+
+          // Skip internal Anchor event fields if they exist and are not needed
+          if (key === "discriminator" || key === "programId") continue;
+
+          // Skip our own added global fields if they somehow appear nested
+          if (
+            key === "timestamp" ||
+            key === "level" ||
+            key === "eventName" ||
+            key === "slot"
+          )
+            continue;
+
+          // Specific conversion for U80F48 fixed-point fields
+          if (FIXED_POINT_U128_FIELDS.has(key) && value instanceof BN) {
+            result[key] = convertFixedPointToDecimal(value);
+          }
+          // Exclude internal padding/reserved fields
+          else if (
+            !key.startsWith("padding") &&
+            !key.startsWith("_padding") &&
+            !key.startsWith("reserved") &&
+            !key.startsWith("_reserved")
+          ) {
+            result[key] = transform(value);
+          }
+        }
+      }
+      return result;
+    }
+    return obj;
   }
 
-  // Handle native BigInt (convert to string for safety)
-  if (typeof data === "bigint") {
-    return data.toString();
-  }
-
-  return data;
+  processed.eventData = transform(data);
+  return processed;
 }
 
-// --- Event Listener Functions ---
+// --- Event Listener Functions (Example for one, apply to all) ---
 
 export function listenToAddAdaptorEvent(program: Program<VoltrVault>): number {
-  console.log("Attaching listener for: addAdaptorEvent");
-  return program.addEventListener("addAdaptorEvent", (event, slot) => {
-    console.log(`\n[Event Received] addAdaptorEvent (Slot: ${slot})`);
-    console.log("Data:", JSON.stringify(stringifyEventData(event), null, 2));
-    // Add custom logic here (e.g., save to DB, send notification)
+  const eventName = "addAdaptorEvent";
+  logger.info(`Attaching listener for: ${eventName}`);
+  return program.addEventListener(eventName, (eventData, slot) => {
+    const logEntry = preprocessEventDataForLogging(
+      eventData,
+      program.programId.toBase58(),
+      eventName,
+      slot
+    );
+    logger.info(logEntry, `${eventName} received`);
+    // Add custom logic here (e.g., save to DB, send notification - though often done by log shipper)
   });
 }
 
 export function listenToCancelRequestWithdrawVaultEvent(
   program: Program<VoltrVault>
 ): number {
-  console.log("Attaching listener for: cancelRequestWithdrawVaultEvent");
-  return program.addEventListener(
-    "cancelRequestWithdrawVaultEvent",
-    (event, slot) => {
-      console.log(
-        `\n[Event Received] cancelRequestWithdrawVaultEvent (Slot: ${slot})`
-      );
-      console.log("Data:", JSON.stringify(stringifyEventData(event), null, 2));
-    }
-  );
-}
-
-export function listenToDepositStrategyEvent(
-  program: Program<VoltrVault>
-): number {
-  console.log("Attaching listener for: depositStrategyEvent");
-  return program.addEventListener("depositStrategyEvent", (event, slot) => {
-    console.log(`\n[Event Received] depositStrategyEvent (Slot: ${slot})`);
-    console.log("Data:", JSON.stringify(stringifyEventData(event), null, 2));
-  });
-}
-
-export function listenToDepositVaultEvent(
-  program: Program<VoltrVault>
-): number {
-  console.log("Attaching listener for: depositVaultEvent");
-  return program.addEventListener("depositVaultEvent", (event, slot) => {
-    console.log(`\n[Event Received] depositVaultEvent (Slot: ${slot})`);
-    console.log("Data:", JSON.stringify(stringifyEventData(event), null, 2));
-  });
-}
-
-export function listenToDirectWithdrawStrategyEvent(
-  program: Program<VoltrVault>
-): number {
-  console.log("Attaching listener for: directWithdrawStrategyEvent");
-  return program.addEventListener(
-    "directWithdrawStrategyEvent",
-    (event, slot) => {
-      console.log(
-        `\n[Event Received] directWithdrawStrategyEvent (Slot: ${slot})`
-      );
-      console.log("Data:", JSON.stringify(stringifyEventData(event), null, 2));
-    }
-  );
-}
-
-export function listenToHarvestFeeEvent(program: Program<VoltrVault>): number {
-  console.log("Attaching listener for: harvestFeeEvent");
-  return program.addEventListener("harvestFeeEvent", (event, slot) => {
-    console.log(`\n[Event Received] harvestFeeEvent (Slot: ${slot})`);
-    console.log("Data:", JSON.stringify(stringifyEventData(event), null, 2));
-  });
-}
-
-export function listenToInitProtocolEvent(
-  program: Program<VoltrVault>
-): number {
-  console.log("Attaching listener for: initProtocolEvent");
-  return program.addEventListener("initProtocolEvent", (event, slot) => {
-    console.log(`\n[Event Received] initProtocolEvent (Slot: ${slot})`);
-    console.log("Data:", JSON.stringify(stringifyEventData(event), null, 2));
-  });
-}
-
-export function listenToInitializeDirectWithdrawStrategyEvent(
-  program: Program<VoltrVault>
-): number {
-  console.log("Attaching listener for: initializeDirectWithdrawStrategyEvent");
-  return program.addEventListener(
-    "initializeDirectWithdrawStrategyEvent",
-    (event, slot) => {
-      console.log(
-        `\n[Event Received] initializeDirectWithdrawStrategyEvent (Slot: ${slot})`
-      );
-      console.log("Data:", JSON.stringify(stringifyEventData(event), null, 2));
-    }
-  );
-}
-
-export function listenToInitializeStrategyEvent(
-  program: Program<VoltrVault>
-): number {
-  console.log("Attaching listener for: initializeStrategyEvent");
-  return program.addEventListener("initializeStrategyEvent", (event, slot) => {
-    console.log(`\n[Event Received] initializeStrategyEvent (Slot: ${slot})`);
-    console.log("Data:", JSON.stringify(stringifyEventData(event), null, 2));
-  });
-}
-
-export function listenToInitializeVaultEvent(
-  program: Program<VoltrVault>
-): number {
-  console.log("Attaching listener for: initializeVaultEvent");
-  return program.addEventListener("initializeVaultEvent", (event, slot) => {
-    console.log(`\n[Event Received] initializeVaultEvent (Slot: ${slot})`);
-    console.log("Data:", JSON.stringify(stringifyEventData(event), null, 2));
-  });
-}
-
-export function listenToRemoveAdaptorEvent(
-  program: Program<VoltrVault>
-): number {
-  console.log("Attaching listener for: removeAdaptorEvent");
-  return program.addEventListener("removeAdaptorEvent", (event, slot) => {
-    console.log(`\n[Event Received] removeAdaptorEvent (Slot: ${slot})`);
-    console.log("Data:", JSON.stringify(stringifyEventData(event), null, 2));
-  });
-}
-
-export function listenToRequestWithdrawVaultEvent(
-  program: Program<VoltrVault>
-): number {
-  console.log("Attaching listener for: requestWithdrawVaultEvent");
-  return program.addEventListener(
-    "requestWithdrawVaultEvent",
-    (event, slot) => {
-      console.log(
-        `\n[Event Received] requestWithdrawVaultEvent (Slot: ${slot})`
-      );
-      console.log("Data:", JSON.stringify(stringifyEventData(event), null, 2));
-    }
-  );
-}
-
-export function listenToUpdateProtocolEvent(
-  program: Program<VoltrVault>
-): number {
-  console.log("Attaching listener for: updateProtocolEvent");
-  return program.addEventListener("updateProtocolEvent", (event, slot) => {
-    console.log(`\n[Event Received] updateProtocolEvent (Slot: ${slot})`);
-    console.log("Data:", JSON.stringify(stringifyEventData(event), null, 2));
-  });
-}
-
-export function listenToUpdateVaultEvent(program: Program<VoltrVault>): number {
-  console.log("Attaching listener for: updateVaultEvent");
-  return program.addEventListener("updateVaultEvent", (event, slot) => {
-    console.log(`\n[Event Received] updateVaultEvent (Slot: ${slot})`);
-    console.log("Data:", JSON.stringify(stringifyEventData(event), null, 2));
-  });
-}
-
-export function listenToWithdrawStrategyEvent(
-  program: Program<VoltrVault>
-): number {
-  console.log("Attaching listener for: withdrawStrategyEvent");
-  return program.addEventListener("withdrawStrategyEvent", (event, slot) => {
-    console.log(`\n[Event Received] withdrawStrategyEvent (Slot: ${slot})`);
-    console.log("Data:", JSON.stringify(stringifyEventData(event), null, 2));
-  });
-}
-
-export function listenToWithdrawVaultEvent(
-  program: Program<VoltrVault>
-): number {
-  console.log("Attaching listener for: withdrawVaultEvent");
-  return program.addEventListener("withdrawVaultEvent", (event, slot) => {
-    console.log(`\n[Event Received] withdrawVaultEvent (Slot: ${slot})`);
-    console.log("Data:", JSON.stringify(stringifyEventData(event), null, 2));
+  const eventName = "cancelRequestWithdrawVaultEvent";
+  logger.info(`Attaching listener for: ${eventName}`);
+  return program.addEventListener(eventName, (eventData, slot) => {
+    const logEntry = preprocessEventDataForLogging(
+      eventData,
+      program.programId.toBase58(),
+      eventName,
+      slot
+    );
+    logger.info(logEntry, `${eventName} received`);
   });
 }
 
 export function listenToCloseStrategyEvent(
   program: Program<VoltrVault>
 ): number {
-  console.log("Attaching listener for: closeStrategyEvent");
-  return program.addEventListener("closeStrategyEvent", (event, slot) => {
-    console.log(`\n[Event Received] closeStrategyEvent (Slot: ${slot})`);
-    console.log("Data:", JSON.stringify(stringifyEventData(event), null, 2));
+  const eventName = "closeStrategyEvent";
+  logger.info(`Attaching listener for: ${eventName}`);
+  return program.addEventListener(eventName, (eventData, slot) => {
+    const logEntry = preprocessEventDataForLogging(
+      eventData,
+      program.programId.toBase58(),
+      eventName,
+      slot
+    );
+    logger.info(logEntry, `${eventName} received`);
+  });
+}
+
+export function listenToDepositStrategyEvent(
+  program: Program<VoltrVault>
+): number {
+  const eventName = "depositStrategyEvent";
+  logger.info(`Attaching listener for: ${eventName}`);
+  return program.addEventListener(eventName, (eventData, slot) => {
+    const logEntry = preprocessEventDataForLogging(
+      eventData,
+      program.programId.toBase58(),
+      eventName,
+      slot
+    );
+    logger.info(logEntry, `${eventName} received`);
+  });
+}
+
+export function listenToDepositVaultEvent(
+  program: Program<VoltrVault>
+): number {
+  const eventName = "depositVaultEvent";
+  logger.info(`Attaching listener for: ${eventName}`);
+  return program.addEventListener(eventName, (eventData, slot) => {
+    const logEntry = preprocessEventDataForLogging(
+      eventData,
+      program.programId.toBase58(),
+      eventName,
+      slot
+    );
+    logger.info(logEntry, `${eventName} received`);
+  });
+}
+
+export function listenToDirectWithdrawStrategyEvent(
+  program: Program<VoltrVault>
+): number {
+  const eventName = "directWithdrawStrategyEvent";
+  logger.info(`Attaching listener for: ${eventName}`);
+  return program.addEventListener(eventName, (eventData, slot) => {
+    const logEntry = preprocessEventDataForLogging(
+      eventData,
+      program.programId.toBase58(),
+      eventName,
+      slot
+    );
+    logger.info(logEntry, `${eventName} received`);
+  });
+}
+
+export function listenToHarvestFeeEvent(program: Program<VoltrVault>): number {
+  const eventName = "harvestFeeEvent";
+  logger.info(`Attaching listener for: ${eventName}`);
+  return program.addEventListener(eventName, (eventData, slot) => {
+    const logEntry = preprocessEventDataForLogging(
+      eventData,
+      program.programId.toBase58(),
+      eventName,
+      slot
+    );
+    logger.info(logEntry, `${eventName} received`);
+  });
+}
+
+export function listenToInitProtocolEvent(
+  program: Program<VoltrVault>
+): number {
+  const eventName = "initProtocolEvent";
+  logger.info(`Attaching listener for: ${eventName}`);
+  return program.addEventListener(eventName, (eventData, slot) => {
+    const logEntry = preprocessEventDataForLogging(
+      eventData,
+      program.programId.toBase58(),
+      eventName,
+      slot
+    );
+    logger.info(logEntry, `${eventName} received`);
+  });
+}
+
+export function listenToInitializeDirectWithdrawStrategyEvent(
+  program: Program<VoltrVault>
+): number {
+  const eventName = "initializeDirectWithdrawStrategyEvent";
+  logger.info(`Attaching listener for: ${eventName}`);
+  return program.addEventListener(eventName, (eventData, slot) => {
+    const logEntry = preprocessEventDataForLogging(
+      eventData,
+      program.programId.toBase58(),
+      eventName,
+      slot
+    );
+    logger.info(logEntry, `${eventName} received`);
+  });
+}
+
+export function listenToInitializeStrategyEvent(
+  program: Program<VoltrVault>
+): number {
+  const eventName = "initializeStrategyEvent";
+  logger.info(`Attaching listener for: ${eventName}`);
+  return program.addEventListener(eventName, (eventData, slot) => {
+    const logEntry = preprocessEventDataForLogging(
+      eventData,
+      program.programId.toBase58(),
+      eventName,
+      slot
+    );
+    logger.info(logEntry, `${eventName} received`);
+  });
+}
+
+export function listenToInitializeVaultEvent(
+  program: Program<VoltrVault>
+): number {
+  const eventName = "initializeVaultEvent";
+  logger.info(`Attaching listener for: ${eventName}`);
+  return program.addEventListener(eventName, (eventData, slot) => {
+    const logEntry = preprocessEventDataForLogging(
+      eventData,
+      program.programId.toBase58(),
+      eventName,
+      slot
+    );
+    logger.info(logEntry, `${eventName} received`);
+  });
+}
+
+export function listenToRemoveAdaptorEvent(
+  program: Program<VoltrVault>
+): number {
+  const eventName = "removeAdaptorEvent";
+  logger.info(`Attaching listener for: ${eventName}`);
+  return program.addEventListener(eventName, (eventData, slot) => {
+    const logEntry = preprocessEventDataForLogging(
+      eventData,
+      program.programId.toBase58(),
+      eventName,
+      slot
+    );
+    logger.info(logEntry, `${eventName} received`);
+  });
+}
+
+export function listenToRequestWithdrawVaultEvent(
+  program: Program<VoltrVault>
+): number {
+  const eventName = "requestWithdrawVaultEvent";
+  logger.info(`Attaching listener for: ${eventName}`);
+  return program.addEventListener(eventName, (eventData, slot) => {
+    const logEntry = preprocessEventDataForLogging(
+      eventData,
+      program.programId.toBase58(),
+      eventName,
+      slot
+    );
+    logger.info(logEntry, `${eventName} received`);
+  });
+}
+
+export function listenToUpdateProtocolEvent(
+  program: Program<VoltrVault>
+): number {
+  const eventName = "updateProtocolEvent";
+  logger.info(`Attaching listener for: ${eventName}`);
+  return program.addEventListener(eventName, (eventData, slot) => {
+    const logEntry = preprocessEventDataForLogging(
+      eventData,
+      program.programId.toBase58(),
+      eventName,
+      slot
+    );
+    logger.info(logEntry, `${eventName} received`);
+  });
+}
+
+export function listenToUpdateVaultEvent(program: Program<VoltrVault>): number {
+  const eventName = "updateVaultEvent";
+  logger.info(`Attaching listener for: ${eventName}`);
+  return program.addEventListener(eventName, (eventData, slot) => {
+    const logEntry = preprocessEventDataForLogging(
+      eventData,
+      program.programId.toBase58(),
+      eventName,
+      slot
+    );
+    logger.info(logEntry, `${eventName} received`);
+  });
+}
+
+export function listenToWithdrawStrategyEvent(
+  program: Program<VoltrVault>
+): number {
+  const eventName = "withdrawStrategyEvent";
+  logger.info(`Attaching listener for: ${eventName}`);
+  return program.addEventListener(eventName, (eventData, slot) => {
+    const logEntry = preprocessEventDataForLogging(
+      eventData,
+      program.programId.toBase58(),
+      eventName,
+      slot
+    );
+    logger.info(logEntry, `${eventName} received`);
+  });
+}
+
+export function listenToWithdrawVaultEvent(
+  program: Program<VoltrVault>
+): number {
+  const eventName = "withdrawVaultEvent";
+  logger.info(`Attaching listener for: ${eventName}`);
+  return program.addEventListener(eventName, (eventData, slot) => {
+    const logEntry = preprocessEventDataForLogging(
+      eventData,
+      program.programId.toBase58(),
+      eventName,
+      slot
+    );
+    logger.info(logEntry, `${eventName} received`);
   });
 }

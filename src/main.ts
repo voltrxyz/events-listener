@@ -12,6 +12,7 @@ async function main() {
     listenerIds.push(
       vaultListeners.listenToCancelRequestWithdrawVaultEvent(program)
     );
+    listenerIds.push(vaultListeners.listenToCloseStrategyEvent(program));
     listenerIds.push(vaultListeners.listenToDepositStrategyEvent(program));
     listenerIds.push(vaultListeners.listenToDepositVaultEvent(program));
     listenerIds.push(
@@ -34,13 +35,12 @@ async function main() {
     console.log("\nAll listeners attached. Waiting for events...");
     console.log("Press Ctrl+C to stop the listener.");
 
-    // Keep the process running indefinitely
-    // You might want more sophisticated shutdown handling in a real application
+    // Keep the process running
     await new Promise(() => {});
   } catch (error) {
     console.error("Error starting listeners:", error);
   } finally {
-    // Basic cleanup (might not run on Ctrl+C without signal handling)
+    // Basic cleanup
     console.log("Removing listeners...");
     for (const id of listenerIds) {
       try {
@@ -58,15 +58,12 @@ main().catch((err) => {
   process.exit(1);
 });
 
-// Basic signal handling for graceful shutdown (optional but recommended)
 process.on("SIGINT", () => {
   console.log("\nCaught interrupt signal (Ctrl+C). Shutting down...");
-  // Ideally, trigger cleanup here if the finally block isn't sufficient
   process.exit(0);
 });
 
 process.on("SIGTERM", () => {
   console.log("\nCaught termination signal. Shutting down...");
-  // Ideally, trigger cleanup here
   process.exit(0);
 });
