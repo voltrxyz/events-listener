@@ -62,11 +62,9 @@ function preprocessEventDataForLogging(
 ): any {
   const processed: { [key: string]: any } = {
     timestamp: new Date().toISOString(), // ISO8601 timestamp
-    level: "info", // Default log level for events
     programId: programId,
     eventName: eventName,
     slot: slot,
-    // ... other global context if needed
   };
 
   function transform(obj: any): any {
