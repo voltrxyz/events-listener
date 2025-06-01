@@ -6,7 +6,7 @@ import pino from "pino";
 
 // --- Pino Logger Setup ---
 const logger = pino({
-  level: process.env.LOG_LEVEL || "info", // Default to 'info', configurable
+  level: process.env.LOG_LEVEL || "info",
   transport:
     process.env.NODE_ENV !== "production"
       ? {
@@ -16,6 +16,16 @@ const logger = pino({
           },
         }
       : undefined,
+  formatters: {
+    level: (label) => {
+      return { level: label };
+    },
+  },
+  timestamp: pino.stdTimeFunctions.isoTime,
+  base: {
+    service: "voltr-vault-listener",
+    version: process.env.npm_package_version || "unknown",
+  },
 });
 
 // --- Constants for Decimal Conversion ---
