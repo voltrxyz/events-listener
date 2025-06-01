@@ -150,8 +150,10 @@ export function listenToAddAdaptorEvent(program: Program<VoltrVault>): number {
       eventName,
       slot
     );
-    logger.info(logEntry, `${eventName} received`);
-    // Add custom logic here (e.g., save to DB, send notification - though often done by log shipper)
+    logger.info({
+      ...logEntry,
+      message: `${eventName} received`,
+    });
   });
 }
 
@@ -167,7 +169,10 @@ export function listenToCancelRequestWithdrawVaultEvent(
       eventName,
       slot
     );
-    logger.info(logEntry, `${eventName} received`);
+    logger.info({
+      ...logEntry,
+      message: `${eventName} received`,
+    });
   });
 }
 
@@ -183,7 +188,10 @@ export function listenToCloseStrategyEvent(
       eventName,
       slot
     );
-    logger.info(logEntry, `${eventName} received`);
+    logger.info({
+      ...logEntry,
+      message: `${eventName} received`,
+    });
   });
 }
 
@@ -199,7 +207,10 @@ export function listenToDepositStrategyEvent(
       eventName,
       slot
     );
-    logger.info(logEntry, `${eventName} received`);
+    logger.info({
+      ...logEntry,
+      message: `${eventName} received`,
+    });
   });
 }
 
@@ -215,7 +226,10 @@ export function listenToDepositVaultEvent(
       eventName,
       slot
     );
-    logger.info(logEntry, `${eventName} received`);
+    logger.info({
+      ...logEntry,
+      message: `${eventName} received`,
+    });
   });
 }
 
@@ -231,7 +245,10 @@ export function listenToDirectWithdrawStrategyEvent(
       eventName,
       slot
     );
-    logger.info(logEntry, `${eventName} received`);
+    logger.info({
+      ...logEntry,
+      message: `${eventName} received`,
+    });
   });
 }
 
@@ -245,7 +262,10 @@ export function listenToHarvestFeeEvent(program: Program<VoltrVault>): number {
       eventName,
       slot
     );
-    logger.info(logEntry, `${eventName} received`);
+    logger.info({
+      ...logEntry,
+      message: `${eventName} received`,
+    });
   });
 }
 
@@ -261,7 +281,10 @@ export function listenToInitProtocolEvent(
       eventName,
       slot
     );
-    logger.info(logEntry, `${eventName} received`);
+    logger.info({
+      ...logEntry,
+      message: `${eventName} received`,
+    });
   });
 }
 
@@ -277,7 +300,10 @@ export function listenToInitializeDirectWithdrawStrategyEvent(
       eventName,
       slot
     );
-    logger.info(logEntry, `${eventName} received`);
+    logger.info({
+      ...logEntry,
+      message: `${eventName} received`,
+    });
   });
 }
 
@@ -293,7 +319,10 @@ export function listenToInitializeStrategyEvent(
       eventName,
       slot
     );
-    logger.info(logEntry, `${eventName} received`);
+    logger.info({
+      ...logEntry,
+      message: `${eventName} received`,
+    });
   });
 }
 
@@ -309,7 +338,10 @@ export function listenToInitializeVaultEvent(
       eventName,
       slot
     );
-    logger.info(logEntry, `${eventName} received`);
+    logger.info({
+      ...logEntry,
+      message: `${eventName} received`,
+    });
   });
 }
 
@@ -325,7 +357,10 @@ export function listenToRemoveAdaptorEvent(
       eventName,
       slot
     );
-    logger.info(logEntry, `${eventName} received`);
+    logger.info({
+      ...logEntry,
+      message: `${eventName} received`,
+    });
   });
 }
 
@@ -341,7 +376,10 @@ export function listenToRequestWithdrawVaultEvent(
       eventName,
       slot
     );
-    logger.info(logEntry, `${eventName} received`);
+    logger.info({
+      ...logEntry,
+      message: `${eventName} received`,
+    });
   });
 }
 
@@ -357,7 +395,10 @@ export function listenToUpdateProtocolEvent(
       eventName,
       slot
     );
-    logger.info(logEntry, `${eventName} received`);
+    logger.info({
+      ...logEntry,
+      message: `${eventName} received`,
+    });
   });
 }
 
@@ -371,7 +412,10 @@ export function listenToUpdateVaultEvent(program: Program<VoltrVault>): number {
       eventName,
       slot
     );
-    logger.info(logEntry, `${eventName} received`);
+    logger.info({
+      ...logEntry,
+      message: `${eventName} received`,
+    });
   });
 }
 
@@ -387,7 +431,10 @@ export function listenToWithdrawStrategyEvent(
       eventName,
       slot
     );
-    logger.info(logEntry, `${eventName} received`);
+    logger.info({
+      ...logEntry,
+      message: `${eventName} received`,
+    });
   });
 }
 
@@ -403,6 +450,9 @@ export function listenToWithdrawVaultEvent(
       eventName,
       slot
     );
-    logger.info(logEntry, `${eventName} received`);
+    logger.info({
+      ...logEntry,
+      message: `${eventName} received`,
+    });
   });
 }
