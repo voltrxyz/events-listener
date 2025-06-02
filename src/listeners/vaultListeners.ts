@@ -58,13 +58,15 @@ function preprocessEventDataForLogging(
   data: any,
   programId: string,
   eventName: string,
-  slot: number
+  slot: number,
+  signature: string
 ): any {
   const processed: { [key: string]: any } = {
     timestamp: new Date().toISOString(), // ISO8601 timestamp
     programId: programId,
     eventName: eventName,
     slot: slot,
+    signature: signature,
   };
 
   function transform(obj: any): any {
@@ -136,321 +138,138 @@ function preprocessEventDataForLogging(
   return processed;
 }
 
-// --- Event Listener Functions (Example for one, apply to all) ---
+type VoltrEventName =
+  | "addAdaptorEvent"
+  | "cancelRequestWithdrawVaultEvent"
+  | "closeStrategyEvent"
+  | "depositStrategyEvent"
+  | "depositVaultEvent"
+  | "directWithdrawStrategyEvent"
+  | "harvestFeeEvent"
+  | "initProtocolEvent"
+  | "initializeDirectWithdrawStrategyEvent"
+  | "initializeStrategyEvent"
+  | "initializeVaultEvent"
+  | "removeAdaptorEvent"
+  | "requestWithdrawVaultEvent"
+  | "updateProtocolEvent"
+  | "updateVaultEvent"
+  | "withdrawStrategyEvent"
+  | "withdrawVaultEvent";
 
-export function listenToAddAdaptorEvent(program: Program<VoltrVault>): number {
-  const eventName = "addAdaptorEvent";
+// Helper function to create event listeners
+function createEventListener(
+  program: Program<VoltrVault>,
+  eventName: VoltrEventName
+): number {
   logger.info(`Attaching listener for: ${eventName}`);
-  return program.addEventListener(eventName, (eventData, slot) => {
+  return program.addEventListener(eventName, (eventData, slot, signature) => {
     const logEntry = preprocessEventDataForLogging(
       eventData,
       program.programId.toBase58(),
       eventName,
-      slot
+      slot,
+      signature
     );
     logger.info({
       ...logEntry,
       message: `${eventName} received`,
     });
   });
+}
+
+export function listenToAddAdaptorEvent(program: Program<VoltrVault>): number {
+  return createEventListener(program, "addAdaptorEvent");
 }
 
 export function listenToCancelRequestWithdrawVaultEvent(
   program: Program<VoltrVault>
 ): number {
-  const eventName = "cancelRequestWithdrawVaultEvent";
-  logger.info(`Attaching listener for: ${eventName}`);
-  return program.addEventListener(eventName, (eventData, slot) => {
-    const logEntry = preprocessEventDataForLogging(
-      eventData,
-      program.programId.toBase58(),
-      eventName,
-      slot
-    );
-    logger.info({
-      ...logEntry,
-      message: `${eventName} received`,
-    });
-  });
+  return createEventListener(program, "cancelRequestWithdrawVaultEvent");
 }
 
 export function listenToCloseStrategyEvent(
   program: Program<VoltrVault>
 ): number {
-  const eventName = "closeStrategyEvent";
-  logger.info(`Attaching listener for: ${eventName}`);
-  return program.addEventListener(eventName, (eventData, slot) => {
-    const logEntry = preprocessEventDataForLogging(
-      eventData,
-      program.programId.toBase58(),
-      eventName,
-      slot
-    );
-    logger.info({
-      ...logEntry,
-      message: `${eventName} received`,
-    });
-  });
+  return createEventListener(program, "closeStrategyEvent");
 }
 
 export function listenToDepositStrategyEvent(
   program: Program<VoltrVault>
 ): number {
-  const eventName = "depositStrategyEvent";
-  logger.info(`Attaching listener for: ${eventName}`);
-  return program.addEventListener(eventName, (eventData, slot) => {
-    const logEntry = preprocessEventDataForLogging(
-      eventData,
-      program.programId.toBase58(),
-      eventName,
-      slot
-    );
-    logger.info({
-      ...logEntry,
-      message: `${eventName} received`,
-    });
-  });
+  return createEventListener(program, "depositStrategyEvent");
 }
 
 export function listenToDepositVaultEvent(
   program: Program<VoltrVault>
 ): number {
-  const eventName = "depositVaultEvent";
-  logger.info(`Attaching listener for: ${eventName}`);
-  return program.addEventListener(eventName, (eventData, slot) => {
-    const logEntry = preprocessEventDataForLogging(
-      eventData,
-      program.programId.toBase58(),
-      eventName,
-      slot
-    );
-    logger.info({
-      ...logEntry,
-      message: `${eventName} received`,
-    });
-  });
+  return createEventListener(program, "depositVaultEvent");
 }
 
 export function listenToDirectWithdrawStrategyEvent(
   program: Program<VoltrVault>
 ): number {
-  const eventName = "directWithdrawStrategyEvent";
-  logger.info(`Attaching listener for: ${eventName}`);
-  return program.addEventListener(eventName, (eventData, slot) => {
-    const logEntry = preprocessEventDataForLogging(
-      eventData,
-      program.programId.toBase58(),
-      eventName,
-      slot
-    );
-    logger.info({
-      ...logEntry,
-      message: `${eventName} received`,
-    });
-  });
+  return createEventListener(program, "directWithdrawStrategyEvent");
 }
 
 export function listenToHarvestFeeEvent(program: Program<VoltrVault>): number {
-  const eventName = "harvestFeeEvent";
-  logger.info(`Attaching listener for: ${eventName}`);
-  return program.addEventListener(eventName, (eventData, slot) => {
-    const logEntry = preprocessEventDataForLogging(
-      eventData,
-      program.programId.toBase58(),
-      eventName,
-      slot
-    );
-    logger.info({
-      ...logEntry,
-      message: `${eventName} received`,
-    });
-  });
+  return createEventListener(program, "harvestFeeEvent");
 }
 
 export function listenToInitProtocolEvent(
   program: Program<VoltrVault>
 ): number {
-  const eventName = "initProtocolEvent";
-  logger.info(`Attaching listener for: ${eventName}`);
-  return program.addEventListener(eventName, (eventData, slot) => {
-    const logEntry = preprocessEventDataForLogging(
-      eventData,
-      program.programId.toBase58(),
-      eventName,
-      slot
-    );
-    logger.info({
-      ...logEntry,
-      message: `${eventName} received`,
-    });
-  });
+  return createEventListener(program, "initProtocolEvent");
 }
 
 export function listenToInitializeDirectWithdrawStrategyEvent(
   program: Program<VoltrVault>
 ): number {
-  const eventName = "initializeDirectWithdrawStrategyEvent";
-  logger.info(`Attaching listener for: ${eventName}`);
-  return program.addEventListener(eventName, (eventData, slot) => {
-    const logEntry = preprocessEventDataForLogging(
-      eventData,
-      program.programId.toBase58(),
-      eventName,
-      slot
-    );
-    logger.info({
-      ...logEntry,
-      message: `${eventName} received`,
-    });
-  });
+  return createEventListener(program, "initializeDirectWithdrawStrategyEvent");
 }
 
 export function listenToInitializeStrategyEvent(
   program: Program<VoltrVault>
 ): number {
-  const eventName = "initializeStrategyEvent";
-  logger.info(`Attaching listener for: ${eventName}`);
-  return program.addEventListener(eventName, (eventData, slot) => {
-    const logEntry = preprocessEventDataForLogging(
-      eventData,
-      program.programId.toBase58(),
-      eventName,
-      slot
-    );
-    logger.info({
-      ...logEntry,
-      message: `${eventName} received`,
-    });
-  });
+  return createEventListener(program, "initializeStrategyEvent");
 }
 
 export function listenToInitializeVaultEvent(
   program: Program<VoltrVault>
 ): number {
-  const eventName = "initializeVaultEvent";
-  logger.info(`Attaching listener for: ${eventName}`);
-  return program.addEventListener(eventName, (eventData, slot) => {
-    const logEntry = preprocessEventDataForLogging(
-      eventData,
-      program.programId.toBase58(),
-      eventName,
-      slot
-    );
-    logger.info({
-      ...logEntry,
-      message: `${eventName} received`,
-    });
-  });
+  return createEventListener(program, "initializeVaultEvent");
 }
 
 export function listenToRemoveAdaptorEvent(
   program: Program<VoltrVault>
 ): number {
-  const eventName = "removeAdaptorEvent";
-  logger.info(`Attaching listener for: ${eventName}`);
-  return program.addEventListener(eventName, (eventData, slot) => {
-    const logEntry = preprocessEventDataForLogging(
-      eventData,
-      program.programId.toBase58(),
-      eventName,
-      slot
-    );
-    logger.info({
-      ...logEntry,
-      message: `${eventName} received`,
-    });
-  });
+  return createEventListener(program, "removeAdaptorEvent");
 }
 
 export function listenToRequestWithdrawVaultEvent(
   program: Program<VoltrVault>
 ): number {
-  const eventName = "requestWithdrawVaultEvent";
-  logger.info(`Attaching listener for: ${eventName}`);
-  return program.addEventListener(eventName, (eventData, slot) => {
-    const logEntry = preprocessEventDataForLogging(
-      eventData,
-      program.programId.toBase58(),
-      eventName,
-      slot
-    );
-    logger.info({
-      ...logEntry,
-      message: `${eventName} received`,
-    });
-  });
+  return createEventListener(program, "requestWithdrawVaultEvent");
 }
 
 export function listenToUpdateProtocolEvent(
   program: Program<VoltrVault>
 ): number {
-  const eventName = "updateProtocolEvent";
-  logger.info(`Attaching listener for: ${eventName}`);
-  return program.addEventListener(eventName, (eventData, slot) => {
-    const logEntry = preprocessEventDataForLogging(
-      eventData,
-      program.programId.toBase58(),
-      eventName,
-      slot
-    );
-    logger.info({
-      ...logEntry,
-      message: `${eventName} received`,
-    });
-  });
+  return createEventListener(program, "updateProtocolEvent");
 }
 
 export function listenToUpdateVaultEvent(program: Program<VoltrVault>): number {
-  const eventName = "updateVaultEvent";
-  logger.info(`Attaching listener for: ${eventName}`);
-  return program.addEventListener(eventName, (eventData, slot) => {
-    const logEntry = preprocessEventDataForLogging(
-      eventData,
-      program.programId.toBase58(),
-      eventName,
-      slot
-    );
-    logger.info({
-      ...logEntry,
-      message: `${eventName} received`,
-    });
-  });
+  return createEventListener(program, "updateVaultEvent");
 }
 
 export function listenToWithdrawStrategyEvent(
   program: Program<VoltrVault>
 ): number {
-  const eventName = "withdrawStrategyEvent";
-  logger.info(`Attaching listener for: ${eventName}`);
-  return program.addEventListener(eventName, (eventData, slot) => {
-    const logEntry = preprocessEventDataForLogging(
-      eventData,
-      program.programId.toBase58(),
-      eventName,
-      slot
-    );
-    logger.info({
-      ...logEntry,
-      message: `${eventName} received`,
-    });
-  });
+  return createEventListener(program, "withdrawStrategyEvent");
 }
 
 export function listenToWithdrawVaultEvent(
   program: Program<VoltrVault>
 ): number {
-  const eventName = "withdrawVaultEvent";
-  logger.info(`Attaching listener for: ${eventName}`);
-  return program.addEventListener(eventName, (eventData, slot) => {
-    const logEntry = preprocessEventDataForLogging(
-      eventData,
-      program.programId.toBase58(),
-      eventName,
-      slot
-    );
-    logger.info({
-      ...logEntry,
-      message: `${eventName} received`,
-    });
-  });
+  return createEventListener(program, "withdrawVaultEvent");
 }
